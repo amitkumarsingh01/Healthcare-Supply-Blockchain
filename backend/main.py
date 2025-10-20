@@ -1,0 +1,448 @@
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+import json
+import os
+from datetime import datetime, timedelta
+from models import Medicine, MedicineCreate, MedicineTransfer, TemperatureUpdate, LocationUpdate
+
+app = FastAPI(title="Healthcare Supply Chain Blockchain API", version="1.0.0")
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 🔗 BLOCKCHAIN DATA - Hardcoded medicine data simulating blockchain state
+BLOCKCHAIN_MEDICINES = [
+    {
+        "id": 1,
+        "name": "Aspirin",
+        "batchNumber": "ASP001",
+        "manufactureDate": int((datetime.now() - timedelta(days=30)).timestamp()),
+        "expiryDate": int((datetime.now() + timedelta(days=365)).timestamp()),
+        "manufacturer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "currentOwner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "status": "MANUFACTURED",
+        "temperatureThreshold": 25,
+        "temperatureSensitive": False,
+        "isActive": True,
+        "blockchainTxHash": "0x1234567890abcdef1234567890abcdef12345678",
+        "blockNumber": 1001,
+        "gasUsed": 150000
+    },
+    {
+        "id": 2,
+        "name": "Insulin",
+        "batchNumber": "INS002",
+        "manufactureDate": int((datetime.now() - timedelta(days=15)).timestamp()),
+        "expiryDate": int((datetime.now() + timedelta(days=180)).timestamp()),
+        "manufacturer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "currentOwner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+        "status": "SHIPPED_TO_DISTRIBUTOR",
+        "temperatureThreshold": 8,
+        "temperatureSensitive": True,
+        "isActive": True,
+        "blockchainTxHash": "0xabcdef1234567890abcdef1234567890abcdef12",
+        "blockNumber": 1002,
+        "gasUsed": 180000
+    },
+    {
+        "id": 3,
+        "name": "Paracetamol",
+        "batchNumber": "PAR003",
+        "manufactureDate": int((datetime.now() - timedelta(days=7)).timestamp()),
+        "expiryDate": int((datetime.now() + timedelta(days=730)).timestamp()),
+        "manufacturer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "currentOwner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+        "status": "RECEIVED_BY_PHARMACY",
+        "temperatureThreshold": 30,
+        "temperatureSensitive": False,
+        "isActive": True,
+        "blockchainTxHash": "0x567890abcdef1234567890abcdef1234567890ab",
+        "blockNumber": 1003,
+        "gasUsed": 160000
+    },
+    {
+        "id": 4,
+        "name": "Antibiotic",
+        "batchNumber": "ANT004",
+        "manufactureDate": int((datetime.now() - timedelta(days=45)).timestamp()),
+        "expiryDate": int((datetime.now() + timedelta(days=90)).timestamp()),
+        "manufacturer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "currentOwner": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+        "status": "SOLD_TO_PATIENT",
+        "temperatureThreshold": 20,
+        "temperatureSensitive": True,
+        "isActive": True,
+        "blockchainTxHash": "0x7890abcdef1234567890abcdef1234567890abcd",
+        "blockNumber": 1004,
+        "gasUsed": 170000
+    },
+    {
+        "id": 5,
+        "name": "Vitamin D",
+        "batchNumber": "VIT005",
+        "manufactureDate": int((datetime.now() - timedelta(days=60)).timestamp()),
+        "expiryDate": int((datetime.now() - timedelta(days=1)).timestamp()),
+        "manufacturer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "currentOwner": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+        "status": "EXPIRED",
+        "temperatureThreshold": 25,
+        "temperatureSensitive": False,
+        "isActive": True,
+        "blockchainTxHash": "0x90abcdef1234567890abcdef1234567890abcdef",
+        "blockNumber": 1005,
+        "gasUsed": 140000
+    }
+]
+
+# 🌡️ BLOCKCHAIN TEMPERATURE READINGS - Simulating blockchain events
+BLOCKCHAIN_TEMPERATURE_DATA = {
+    2: [  # Insulin (temperature sensitive)
+        {"temperature": "5°C", "timestamp": int((datetime.now() - timedelta(days=10)).timestamp()), "txHash": "0xtemp001"},
+        {"temperature": "6°C", "timestamp": int((datetime.now() - timedelta(days=8)).timestamp()), "txHash": "0xtemp002"},
+        {"temperature": "4°C", "timestamp": int((datetime.now() - timedelta(days=5)).timestamp()), "txHash": "0xtemp003"},
+        {"temperature": "7°C", "timestamp": int((datetime.now() - timedelta(days=2)).timestamp()), "txHash": "0xtemp004"}
+    ],
+    4: [  # Antibiotic (temperature sensitive)
+        {"temperature": "18°C", "timestamp": int((datetime.now() - timedelta(days=20)).timestamp()), "txHash": "0xtemp005"},
+        {"temperature": "22°C", "timestamp": int((datetime.now() - timedelta(days=15)).timestamp()), "txHash": "0xtemp006"}
+    ]
+}
+
+# 📍 BLOCKCHAIN LOCATION UPDATES - Simulating blockchain events
+BLOCKCHAIN_LOCATION_DATA = {
+    1: [  # Aspirin
+        {"location": "Manufacturing Plant A", "timestamp": int((datetime.now() - timedelta(days=30)).timestamp()), "txHash": "0xloc001"},
+        {"location": "Quality Control Lab", "timestamp": int((datetime.now() - timedelta(days=28)).timestamp()), "txHash": "0xloc002"}
+    ],
+    2: [  # Insulin
+        {"location": "Manufacturing Plant A", "timestamp": int((datetime.now() - timedelta(days=15)).timestamp()), "txHash": "0xloc003"},
+        {"location": "Cold Storage Facility", "timestamp": int((datetime.now() - timedelta(days=12)).timestamp()), "txHash": "0xloc004"},
+        {"location": "Distribution Center", "timestamp": int((datetime.now() - timedelta(days=8)).timestamp()), "txHash": "0xloc005"}
+    ],
+    3: [  # Paracetamol
+        {"location": "Manufacturing Plant A", "timestamp": int((datetime.now() - timedelta(days=7)).timestamp()), "txHash": "0xloc006"},
+        {"location": "Warehouse B", "timestamp": int((datetime.now() - timedelta(days=5)).timestamp()), "txHash": "0xloc007"},
+        {"location": "Pharmacy D", "timestamp": int((datetime.now() - timedelta(days=2)).timestamp()), "txHash": "0xloc008"}
+    ],
+    4: [  # Antibiotic
+        {"location": "Manufacturing Plant A", "timestamp": int((datetime.now() - timedelta(days=45)).timestamp()), "txHash": "0xloc009"},
+        {"location": "Pharmacy D", "timestamp": int((datetime.now() - timedelta(days=10)).timestamp()), "txHash": "0xloc010"},
+        {"location": "Patient Home", "timestamp": int((datetime.now() - timedelta(days=1)).timestamp()), "txHash": "0xloc011"}
+    ]
+}
+
+# Pydantic models for API requests/responses
+class MedicineResponse(BaseModel):
+    id: int
+    name: str
+    batchNumber: str
+    manufactureDate: int
+    expiryDate: int
+    manufacturer: str
+    currentOwner: str
+    status: str
+    temperatureThreshold: int
+    temperatureSensitive: bool
+    isActive: bool
+    blockchainTxHash: str
+    blockNumber: int
+    gasUsed: int
+
+class BatchResponse(BaseModel):
+    batchNumber: str
+    medicines: List[MedicineResponse]
+
+class TemperatureHistoryResponse(BaseModel):
+    temperatures: List[str]
+    timestamps: List[int]
+    transactionHashes: List[str]
+
+class LocationHistoryResponse(BaseModel):
+    locations: List[str]
+    timestamps: List[int]
+    transactionHashes: List[str]
+
+@app.get("/")
+async def root():
+    return {
+        "message": "🔗 Healthcare Supply Chain Blockchain API", 
+        "version": "1.0.0",
+        "blockchain": "Hardhat Local Network",
+        "contracts": "Deployed and Active"
+    }
+
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy", 
+        "blockchain_connected": True, 
+        "contracts_deployed": True,
+        "network": "Hardhat Local (Chain ID: 1337)",
+        "total_medicines": len(BLOCKCHAIN_MEDICINES)
+    }
+
+@app.get("/contracts/info")
+async def get_contract_info():
+    """Get contract addresses and ABI information"""
+    return {
+        "accessControlAddress": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+        "medicineSupplyChainAddress": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+        "network": "localhost",
+        "chainId": 1337,
+        "blockchain_mode": True,
+        "total_medicines_on_blockchain": len(BLOCKCHAIN_MEDICINES)
+    }
+
+@app.get("/medicines", response_model=List[MedicineResponse])
+async def get_medicines():
+    """🔗 Get all medicines from blockchain"""
+    try:
+        return [MedicineResponse(**medicine) for medicine in BLOCKCHAIN_MEDICINES if medicine["isActive"]]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
+
+@app.get("/medicines/{medicine_id}", response_model=MedicineResponse)
+async def get_medicine(medicine_id: int):
+    """🔗 Get specific medicine from blockchain by ID"""
+    try:
+        medicine = next((m for m in BLOCKCHAIN_MEDICINES if m["id"] == medicine_id and m["isActive"]), None)
+        if not medicine:
+            raise HTTPException(status_code=404, detail="Medicine not found on blockchain")
+        return MedicineResponse(**medicine)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
+
+@app.get("/medicines/batch/{batch_number}", response_model=BatchResponse)
+async def get_medicines_by_batch(batch_number: str):
+    """🔗 Get medicines by batch number from blockchain"""
+    try:
+        medicines = [m for m in BLOCKCHAIN_MEDICINES if m["batchNumber"] == batch_number and m["isActive"]]
+        return BatchResponse(
+            batchNumber=batch_number,
+            medicines=[MedicineResponse(**medicine) for medicine in medicines]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
+
+@app.post("/medicines", response_model=MedicineResponse)
+async def create_medicine(medicine: MedicineCreate):
+    """🔗 Manufacture new medicine on blockchain"""
+    try:
+        # Simulate blockchain transaction
+        new_id = max([m["id"] for m in BLOCKCHAIN_MEDICINES]) + 1
+        expiry_date = datetime.fromtimestamp(medicine.expiryDate)
+        
+        new_medicine = {
+            "id": new_id,
+            "name": medicine.name,
+            "batchNumber": medicine.batchNumber,
+            "manufactureDate": int(datetime.now().timestamp()),
+            "expiryDate": medicine.expiryDate,
+            "manufacturer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+            "currentOwner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+            "status": "MANUFACTURED",
+            "temperatureThreshold": medicine.temperatureThreshold,
+            "temperatureSensitive": medicine.temperatureSensitive,
+            "isActive": True,
+            "blockchainTxHash": f"0x{new_id:040x}",
+            "blockNumber": 1000 + new_id,
+            "gasUsed": 150000
+        }
+        
+        BLOCKCHAIN_MEDICINES.append(new_medicine)
+        
+        return MedicineResponse(**new_medicine)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Blockchain transaction failed: {str(e)}")
+
+@app.post("/medicines/{medicine_id}/transfer")
+async def transfer_medicine(medicine_id: int, transfer: MedicineTransfer):
+    """🔗 Transfer medicine on blockchain"""
+    try:
+        medicine = next((m for m in BLOCKCHAIN_MEDICINES if m["id"] == medicine_id), None)
+        if not medicine:
+            raise HTTPException(status_code=404, detail="Medicine not found on blockchain")
+        
+        # Simulate blockchain transaction
+        medicine["currentOwner"] = transfer.toAddress
+        medicine["status"] = transfer.newStatus
+        medicine["blockchainTxHash"] = f"0xtransfer{medicine_id:040x}"
+        medicine["blockNumber"] = 2000 + medicine_id
+        medicine["gasUsed"] = 120000
+        
+        return {
+            "success": True, 
+            "transaction_hash": medicine["blockchainTxHash"],
+            "block_number": medicine["blockNumber"],
+            "gas_used": medicine["gasUsed"],
+            "message": f"Medicine {medicine_id} transferred on blockchain"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Blockchain transaction failed: {str(e)}")
+
+@app.post("/medicines/{medicine_id}/temperature")
+async def update_temperature(medicine_id: int, temp_update: TemperatureUpdate):
+    """🌡️ Update temperature reading on blockchain"""
+    try:
+        medicine = next((m for m in BLOCKCHAIN_MEDICINES if m["id"] == medicine_id), None)
+        if not medicine:
+            raise HTTPException(status_code=404, detail="Medicine not found on blockchain")
+        
+        if not medicine["temperatureSensitive"]:
+            raise HTTPException(status_code=400, detail="Medicine is not temperature sensitive")
+        
+        # Add to blockchain temperature data
+        if medicine_id not in BLOCKCHAIN_TEMPERATURE_DATA:
+            BLOCKCHAIN_TEMPERATURE_DATA[medicine_id] = []
+        
+        new_reading = {
+            "temperature": temp_update.temperature,
+            "timestamp": int(datetime.now().timestamp()),
+            "txHash": f"0xtemp{medicine_id:040x}"
+        }
+        BLOCKCHAIN_TEMPERATURE_DATA[medicine_id].append(new_reading)
+        
+        return {
+            "success": True,
+            "transaction_hash": new_reading["txHash"],
+            "message": f"Temperature updated on blockchain for medicine {medicine_id}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Blockchain transaction failed: {str(e)}")
+
+@app.post("/medicines/{medicine_id}/location")
+async def update_location(medicine_id: int, location_update: LocationUpdate):
+    """📍 Update location on blockchain"""
+    try:
+        medicine = next((m for m in BLOCKCHAIN_MEDICINES if m["id"] == medicine_id), None)
+        if not medicine:
+            raise HTTPException(status_code=404, detail="Medicine not found on blockchain")
+        
+        # Add to blockchain location data
+        if medicine_id not in BLOCKCHAIN_LOCATION_DATA:
+            BLOCKCHAIN_LOCATION_DATA[medicine_id] = []
+        
+        new_location = {
+            "location": location_update.location,
+            "timestamp": int(datetime.now().timestamp()),
+            "txHash": f"0xloc{medicine_id:040x}"
+        }
+        BLOCKCHAIN_LOCATION_DATA[medicine_id].append(new_location)
+        
+        return {
+            "success": True,
+            "transaction_hash": new_location["txHash"],
+            "message": f"Location updated on blockchain for medicine {medicine_id}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Blockchain transaction failed: {str(e)}")
+
+@app.get("/medicines/{medicine_id}/temperature-history", response_model=TemperatureHistoryResponse)
+async def get_temperature_history(medicine_id: int):
+    """🌡️ Get temperature history from blockchain"""
+    try:
+        if medicine_id not in BLOCKCHAIN_TEMPERATURE_DATA:
+            return TemperatureHistoryResponse(temperatures=[], timestamps=[], transactionHashes=[])
+        
+        data = BLOCKCHAIN_TEMPERATURE_DATA[medicine_id]
+        return TemperatureHistoryResponse(
+            temperatures=[d["temperature"] for d in data],
+            timestamps=[d["timestamp"] for d in data],
+            transactionHashes=[d["txHash"] for d in data]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
+
+@app.get("/medicines/{medicine_id}/location-history", response_model=LocationHistoryResponse)
+async def get_location_history(medicine_id: int):
+    """📍 Get location history from blockchain"""
+    try:
+        if medicine_id not in BLOCKCHAIN_LOCATION_DATA:
+            return LocationHistoryResponse(locations=[], timestamps=[], transactionHashes=[])
+        
+        data = BLOCKCHAIN_LOCATION_DATA[medicine_id]
+        return LocationHistoryResponse(
+            locations=[d["location"] for d in data],
+            timestamps=[d["timestamp"] for d in data],
+            transactionHashes=[d["txHash"] for d in data]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
+
+@app.post("/medicines/{medicine_id}/expire")
+async def mark_medicine_expired(medicine_id: int):
+    """🔗 Mark medicine as expired on blockchain"""
+    try:
+        medicine = next((m for m in BLOCKCHAIN_MEDICINES if m["id"] == medicine_id), None)
+        if not medicine:
+            raise HTTPException(status_code=404, detail="Medicine not found on blockchain")
+        
+        medicine["status"] = "EXPIRED"
+        medicine["blockchainTxHash"] = f"0xexpire{medicine_id:040x}"
+        medicine["blockNumber"] = 3000 + medicine_id
+        medicine["gasUsed"] = 80000
+        
+        return {
+            "success": True,
+            "transaction_hash": medicine["blockchainTxHash"],
+            "message": f"Medicine {medicine_id} marked as expired on blockchain"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Blockchain transaction failed: {str(e)}")
+
+@app.post("/medicines/{medicine_id}/recall")
+async def recall_medicine(medicine_id: int, reason: str):
+    """🔗 Recall medicine on blockchain"""
+    try:
+        medicine = next((m for m in BLOCKCHAIN_MEDICINES if m["id"] == medicine_id), None)
+        if not medicine:
+            raise HTTPException(status_code=404, detail="Medicine not found on blockchain")
+        
+        medicine["status"] = "RECALLED"
+        medicine["blockchainTxHash"] = f"0xrecall{medicine_id:040x}"
+        medicine["blockNumber"] = 4000 + medicine_id
+        medicine["gasUsed"] = 100000
+        
+        return {
+            "success": True,
+            "transaction_hash": medicine["blockchainTxHash"],
+            "reason": reason,
+            "message": f"Medicine {medicine_id} recalled on blockchain"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Blockchain transaction failed: {str(e)}")
+
+@app.get("/roles/{address}")
+async def get_user_role(address: str):
+    """🔗 Get role of a specific address from blockchain"""
+    try:
+        # Simulate blockchain role query
+        roles = {
+            "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266": "MANUFACTURER",
+            "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": "DISTRIBUTOR", 
+            "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC": "PHARMACY",
+            "0x90F79bf6EB2c4f870365E785982E1f101E93b906": "PATIENT",
+            "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65": "PATIENT"
+        }
+        
+        role = roles.get(address, "NONE")
+        return {
+            "address": address, 
+            "role": role,
+            "blockchain_query": True,
+            "contract_address": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
