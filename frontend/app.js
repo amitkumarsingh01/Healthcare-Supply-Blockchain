@@ -204,50 +204,58 @@ class HealthcareSupplyChainApp {
             return;
         }
 
-        // Check if contract addresses are loaded
-        if (!contractAddresses.medicineSupplyChain) {
-            this.showNotification('Contract addresses not loaded. Please refresh the page.', 'error');
+        const name = document.getElementById('medicineName').value.trim();
+        const batchNumber = document.getElementById('batchNumber').value.trim();
+        const expiryDate = document.getElementById('expiryDate').value;
+        
+        // Validation
+        if (!name || !batchNumber || !expiryDate) {
+            this.showNotification('Please fill in all required fields', 'error');
             return;
         }
 
         const formData = {
-            name: document.getElementById('medicineName').value,
-            batchNumber: document.getElementById('batchNumber').value,
-            expiryDate: Math.floor(new Date(document.getElementById('expiryDate').value).getTime() / 1000),
-            temperatureThreshold: parseInt(document.getElementById('temperatureThreshold').value),
+            name: name,
+            batchNumber: batchNumber,
+            expiryDate: Math.floor(new Date(expiryDate).getTime() / 1000),
+            temperatureThreshold: parseInt(document.getElementById('temperatureThreshold').value) || 25,
             temperatureSensitive: document.getElementById('temperatureSensitive').checked
         };
 
         try {
             this.showLoading();
-            console.log('🔗 Manufacturing medicine on blockchain...');
-            console.log('Contract address:', contractAddresses.medicineSupplyChain);
+            console.log('🔗 Manufacturing medicine...');
             console.log('Form data:', formData);
+            console.log('API URL:', `${this.apiBaseUrl}/medicines`);
             
-            // Call smart contract directly
-            const txHash = await metaMaskService.sendContractTransaction(
-                contractAddresses.medicineSupplyChain,
-                MEDICINE_SUPPLY_CHAIN_ABI,
-                'manufactureMedicine',
-                [
-                    formData.name,
-                    formData.batchNumber,
-                    formData.expiryDate,
-                    formData.temperatureThreshold,
-                    formData.temperatureSensitive
-                ]
-            );
+            // Use backend API (in-memory database)
+            const response = await fetch(`${this.apiBaseUrl}/medicines`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
 
-            console.log('✅ Blockchain transaction successful:', txHash);
-            this.showNotification(`🔗 Medicine manufactured on blockchain! Transaction: ${txHash.slice(0, 10)}...`, 'success');
+            console.log('Response status:', response.status);
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                console.error('Error response:', errorData);
+                throw new Error(errorData.detail || `HTTP ${response.status}: Failed to manufacture medicine`);
+            }
+
+            const result = await response.json();
+            console.log('✅ Medicine manufactured successfully:', result);
+            this.showNotification(`✅ Medicine "${result.name}" manufactured successfully! ID: ${result.id}`, 'success');
             document.getElementById('manufactureForm').reset();
             
             // Refresh dashboard
             await this.loadDashboard();
             
         } catch (error) {
-            console.error('❌ Blockchain transaction failed:', error);
-            this.showNotification(`❌ Failed to manufacture medicine on blockchain: ${error.message}`, 'error');
+            console.error('❌ Failed to manufacture medicine:', error);
+            this.showNotification(`❌ Failed to manufacture medicine: ${error.message}`, 'error');
         } finally {
             this.hideLoading();
         }
@@ -312,20 +320,31 @@ class HealthcareSupplyChainApp {
 
         try {
             this.showLoading();
-            console.log('🔗 Querying blockchain for medicine tracking...');
+            console.log('🔗 Querying backend for medicine tracking...');
+            console.log('Medicine ID:', medicineId);
             
-            const response = await fetch(`${this.apiBaseUrl}/medicines/${medicineId}`);
-            if (!response.ok) {
-                throw new Error('Medicine not found on blockchain');
+            // Fetch both medicine details and stages
+            const [medicineResponse, stagesResponse] = await Promise.all([
+                fetch(`${this.apiBaseUrl}/medicines/${medicineId}`),
+                fetch(`${this.apiBaseUrl}/medicines/${medicineId}/stages`)
+            ]);
+            
+            if (!medicineResponse.ok) {
+                throw new Error('Medicine not found');
             }
 
-            const medicine = await response.json();
-            console.log('✅ Blockchain query successful for medicine:', medicine.id);
-            this.displayTrackingResults(medicine);
+            const medicine = await medicineResponse.json();
+            const stagesData = await stagesResponse.json();
+            
+            console.log('✅ Medicine data:', medicine);
+            console.log('✅ Stages data:', stagesData);
+            console.log('✅ Number of stages:', stagesData.stages ? stagesData.stages.length : 0);
+            
+            this.displayTrackingResults(medicine, stagesData.stages || []);
             
         } catch (error) {
-            console.error('❌ Blockchain query failed:', error);
-            this.showNotification(`❌ Error tracking medicine on blockchain: ${error.message}`, 'error');
+            console.error('❌ Query failed:', error);
+            this.showNotification(`❌ Error tracking medicine: ${error.message}`, 'error');
         } finally {
             this.hideLoading();
         }
@@ -337,23 +356,41 @@ class HealthcareSupplyChainApp {
         await this.handleTrackMedicine();
     }
 
-    displayTrackingResults(medicine) {
+    displayTrackingResults(medicine, stages = []) {
         const container = document.getElementById('trackingResults');
         
-        container.innerHTML = `
-            <div class="medicine-details">
-                <h3>${medicine.name}</h3>
-                <div class="medicine-info">
-                    <span><strong>ID:</strong> ${medicine.id}</span>
-                    <span><strong>Batch:</strong> ${medicine.batchNumber}</span>
-                    <span><strong>Status:</strong> <span class="status-badge status-${medicine.status.toLowerCase()}">${this.formatStatus(medicine.status)}</span></span>
-                    <span><strong>Current Owner:</strong> ${medicine.currentOwner}</span>
-                    <span><strong>Manufacturer:</strong> ${medicine.manufacturer}</span>
-                    <span><strong>Expiry Date:</strong> ${this.formatDate(medicine.expiryDate)}</span>
+        console.log('Displaying tracking results for medicine:', medicine);
+        console.log('Stages to display:', stages);
+        
+        // Build timeline items from stages
+        let timelineHTML = '';
+        
+        if (stages && stages.length > 0) {
+            console.log(`Rendering ${stages.length} stages`);
+            timelineHTML = stages.map((stage, index) => {
+                const icon = this.getStageIcon(stage.stage);
+                const isCurrent = index === stages.length - 1;
+                console.log(`Rendering stage ${index + 1}: ${stage.stage} with icon: ${icon}`);
+                
+                return `
+                <div class="timeline-item">
+                    <div class="timeline-icon ${isCurrent ? 'current' : ''}">
+                        <i class="fas fa-${icon}"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <h4>${this.formatStatus(stage.stage)}</h4>
+                        <p><strong>Location:</strong> ${stage.location}</p>
+                        <p><strong>Owner:</strong> ${stage.owner.slice(0, 6)}...${stage.owner.slice(-4)}</p>
+                        <p><strong>Tx Hash:</strong> ${stage.txHash}</p>
+                        <small>${this.formatDate(stage.timestamp)}</small>
+                    </div>
                 </div>
-            </div>
-            <div class="tracking-timeline">
-                <h4>Supply Chain Timeline</h4>
+            `;
+            }).join('');
+        } else {
+            console.log('No stages found, using fallback');
+            // Fallback to basic info if no stages
+            timelineHTML = `
                 <div class="timeline-item">
                     <div class="timeline-content">
                         <h4>Manufactured</h4>
@@ -369,10 +406,44 @@ class HealthcareSupplyChainApp {
                         </div>
                     </div>
                 ` : ''}
+            `;
+        }
+        
+        container.innerHTML = `
+            <div class="medicine-details">
+                <h3>${medicine.name}</h3>
+                <div class="medicine-info">
+                    <span><strong>ID:</strong> ${medicine.id}</span>
+                    <span><strong>Batch:</strong> ${medicine.batchNumber}</span>
+                    <span><strong>Status:</strong> <span class="status-badge status-${medicine.status.toLowerCase()}">${this.formatStatus(medicine.status)}</span></span>
+                    <span><strong>Current Owner:</strong> ${medicine.currentOwner}</span>
+                    <span><strong>Manufacturer:</strong> ${medicine.manufacturer}</span>
+                    <span><strong>Expiry Date:</strong> ${this.formatDate(medicine.expiryDate)}</span>
+                </div>
+            </div>
+            <div class="tracking-timeline">
+                <h4>Complete Supply Chain Timeline (${stages ? stages.length : 0} stages)</h4>
+                ${timelineHTML}
             </div>
         `;
         
         container.style.display = 'block';
+    }
+
+    getStageIcon(stage) {
+        const icons = {
+            'MANUFACTURED': 'industry',
+            'SHIPPED_TO_DISTRIBUTOR': 'truck',
+            'RECEIVED_BY_DISTRIBUTOR': 'warehouse',
+            'SHIPPED_TO_PHARMACY': 'truck-loading',
+            'RECEIVED_BY_PHARMACY': 'store',
+            'SOLD_TO_PATIENT': 'user-check',
+            'EXPIRED': 'exclamation-circle',
+            'RECALLED': 'exclamation-triangle'
+        };
+        const icon = icons[stage] || 'circle';
+        console.log(`Stage: ${stage} -> Icon: ${icon}`);
+        return icon;
     }
 
     async searchMedicines() {

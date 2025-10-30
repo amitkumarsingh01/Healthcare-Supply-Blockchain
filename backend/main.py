@@ -139,6 +139,39 @@ BLOCKCHAIN_LOCATION_DATA = {
     ]
 }
 
+# 📊 SUPPLY CHAIN STAGES - Detailed tracking for each medicine
+BLOCKCHAIN_STAGES_DATA = {
+    1: [  # Aspirin
+        {"stage": "MANUFACTURED", "location": "Manufacturing Plant A", "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "timestamp": int((datetime.now() - timedelta(days=30)).timestamp()), "txHash": "0xstage001"}
+    ],
+    2: [  # Insulin - Full lifecycle
+        {"stage": "MANUFACTURED", "location": "Manufacturing Plant A", "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "timestamp": int((datetime.now() - timedelta(days=15)).timestamp()), "txHash": "0xstage002"},
+        {"stage": "SHIPPED_TO_DISTRIBUTOR", "location": "Loading Dock A", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=13)).timestamp()), "txHash": "0xstage003"},
+        {"stage": "RECEIVED_BY_DISTRIBUTOR", "location": "Distribution Center", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=12)).timestamp()), "txHash": "0xstage004"}
+    ],
+    3: [  # Paracetamol - Through pharmacy
+        {"stage": "MANUFACTURED", "location": "Manufacturing Plant A", "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "timestamp": int((datetime.now() - timedelta(days=7)).timestamp()), "txHash": "0xstage005"},
+        {"stage": "SHIPPED_TO_DISTRIBUTOR", "location": "Loading Dock B", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=6)).timestamp()), "txHash": "0xstage006"},
+        {"stage": "RECEIVED_BY_DISTRIBUTOR", "location": "Warehouse B", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=5)).timestamp()), "txHash": "0xstage007"},
+        {"stage": "SHIPPED_TO_PHARMACY", "location": "Warehouse B - Outbound", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "timestamp": int((datetime.now() - timedelta(days=4)).timestamp()), "txHash": "0xstage008"},
+        {"stage": "RECEIVED_BY_PHARMACY", "location": "Pharmacy D", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "timestamp": int((datetime.now() - timedelta(days=2)).timestamp()), "txHash": "0xstage009"}
+    ],
+    4: [  # Antibiotic - Sold to patient
+        {"stage": "MANUFACTURED", "location": "Manufacturing Plant A", "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "timestamp": int((datetime.now() - timedelta(days=45)).timestamp()), "txHash": "0xstage010"},
+        {"stage": "SHIPPED_TO_DISTRIBUTOR", "location": "Loading Dock C", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=43)).timestamp()), "txHash": "0xstage011"},
+        {"stage": "RECEIVED_BY_DISTRIBUTOR", "location": "Distribution Center", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=42)).timestamp()), "txHash": "0xstage012"},
+        {"stage": "SHIPPED_TO_PHARMACY", "location": "Distribution Center - Outbound", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "timestamp": int((datetime.now() - timedelta(days=40)).timestamp()), "txHash": "0xstage013"},
+        {"stage": "RECEIVED_BY_PHARMACY", "location": "Pharmacy D", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "timestamp": int((datetime.now() - timedelta(days=38)).timestamp()), "txHash": "0xstage014"},
+        {"stage": "SOLD_TO_PATIENT", "location": "Patient Home", "owner": "0x90F79bf6EB2c4f870365E785982E1f101E93b906", "timestamp": int((datetime.now() - timedelta(days=1)).timestamp()), "txHash": "0xstage015"}
+    ],
+    5: [  # Vitamin D - Expired
+        {"stage": "MANUFACTURED", "location": "Manufacturing Plant A", "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "timestamp": int((datetime.now() - timedelta(days=60)).timestamp()), "txHash": "0xstage016"},
+        {"stage": "SHIPPED_TO_DISTRIBUTOR", "location": "Loading Dock D", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=58)).timestamp()), "txHash": "0xstage017"},
+        {"stage": "RECEIVED_BY_PHARMACY", "location": "Pharmacy D", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "timestamp": int((datetime.now() - timedelta(days=2)).timestamp()), "txHash": "0xstage018"},
+        {"stage": "EXPIRED", "location": "Pharmacy D - Expired Stock", "owner": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65", "timestamp": int((datetime.now() - timedelta(days=1)).timestamp()), "txHash": "0xstage019"}
+    ]
+}
+
 # Pydantic models for API requests/responses
 class MedicineResponse(BaseModel):
     id: int
@@ -170,6 +203,16 @@ class LocationHistoryResponse(BaseModel):
     timestamps: List[int]
     transactionHashes: List[str]
 
+class SupplyChainStage(BaseModel):
+    stage: str
+    location: str
+    owner: str
+    timestamp: int
+    txHash: str
+
+class SupplyChainTimelineResponse(BaseModel):
+    stages: List[SupplyChainStage]
+
 @app.get("/")
 async def root():
     return {
@@ -193,8 +236,8 @@ async def health_check():
 async def get_contract_info():
     """Get contract addresses and ABI information"""
     return {
-        "accessControlAddress": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
-        "medicineSupplyChainAddress": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+        "accessControlAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "medicineSupplyChainAddress": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
         "network": "localhost",
         "chainId": 1337,
         "blockchain_mode": True,
@@ -237,17 +280,22 @@ async def create_medicine(medicine: MedicineCreate):
     """🔗 Manufacture new medicine on blockchain"""
     try:
         # Simulate blockchain transaction
-        new_id = max([m["id"] for m in BLOCKCHAIN_MEDICINES]) + 1
+        if not BLOCKCHAIN_MEDICINES:
+            new_id = 1
+        else:
+            new_id = max([m["id"] for m in BLOCKCHAIN_MEDICINES]) + 1
         expiry_date = datetime.fromtimestamp(medicine.expiryDate)
+        manufacturer_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+        current_time = int(datetime.now().timestamp())
         
         new_medicine = {
             "id": new_id,
             "name": medicine.name,
             "batchNumber": medicine.batchNumber,
-            "manufactureDate": int(datetime.now().timestamp()),
+            "manufactureDate": current_time,
             "expiryDate": medicine.expiryDate,
-            "manufacturer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-            "currentOwner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+            "manufacturer": manufacturer_address,
+            "currentOwner": manufacturer_address,
             "status": "MANUFACTURED",
             "temperatureThreshold": medicine.temperatureThreshold,
             "temperatureSensitive": medicine.temperatureSensitive,
@@ -258,6 +306,22 @@ async def create_medicine(medicine: MedicineCreate):
         }
         
         BLOCKCHAIN_MEDICINES.append(new_medicine)
+        
+        # Automatically create initial stage entry in stages data
+        BLOCKCHAIN_STAGES_DATA[new_id] = [{
+            "stage": "MANUFACTURED",
+            "location": "Manufacturing Plant A",
+            "owner": manufacturer_address,
+            "timestamp": current_time,
+            "txHash": f"0x{new_id:040x}"
+        }]
+        
+        # Add initial location entry
+        BLOCKCHAIN_LOCATION_DATA[new_id] = [{
+            "location": "Manufacturing Plant A",
+            "timestamp": current_time,
+            "txHash": f"0xloc{new_id:05d}"
+        }]
         
         return MedicineResponse(**new_medicine)
     except Exception as e:
@@ -277,6 +341,30 @@ async def transfer_medicine(medicine_id: int, transfer: MedicineTransfer):
         medicine["blockchainTxHash"] = f"0xtransfer{medicine_id:040x}"
         medicine["blockNumber"] = 2000 + medicine_id
         medicine["gasUsed"] = 120000
+        
+        # Add stage to stages data
+        if medicine_id not in BLOCKCHAIN_STAGES_DATA:
+            BLOCKCHAIN_STAGES_DATA[medicine_id] = []
+        
+        new_stage = {
+            "stage": transfer.newStatus,
+            "location": transfer.location,
+            "owner": transfer.toAddress,
+            "timestamp": int(datetime.now().timestamp()),
+            "txHash": medicine["blockchainTxHash"]
+        }
+        BLOCKCHAIN_STAGES_DATA[medicine_id].append(new_stage)
+        
+        # Add location to location data
+        if medicine_id not in BLOCKCHAIN_LOCATION_DATA:
+            BLOCKCHAIN_LOCATION_DATA[medicine_id] = []
+        
+        new_location = {
+            "location": transfer.location,
+            "timestamp": int(datetime.now().timestamp()),
+            "txHash": f"0xloc{medicine_id:05d}_{len(BLOCKCHAIN_LOCATION_DATA[medicine_id])}"
+        }
+        BLOCKCHAIN_LOCATION_DATA[medicine_id].append(new_location)
         
         return {
             "success": True, 
@@ -377,6 +465,20 @@ async def get_location_history(medicine_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
 
+@app.get("/medicines/{medicine_id}/stages", response_model=SupplyChainTimelineResponse)
+async def get_supply_chain_stages(medicine_id: int):
+    """📊 Get complete supply chain stages timeline from blockchain"""
+    try:
+        if medicine_id not in BLOCKCHAIN_STAGES_DATA:
+            return SupplyChainTimelineResponse(stages=[])
+        
+        stages = BLOCKCHAIN_STAGES_DATA[medicine_id]
+        return SupplyChainTimelineResponse(
+            stages=[SupplyChainStage(**stage) for stage in stages]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
+
 @app.post("/medicines/{medicine_id}/expire")
 async def mark_medicine_expired(medicine_id: int):
     """🔗 Mark medicine as expired on blockchain"""
@@ -445,4 +547,4 @@ async def get_user_role(address: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8005)
