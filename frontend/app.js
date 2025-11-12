@@ -45,6 +45,14 @@ class HealthcareSupplyChainApp {
             await this.handleTransferMedicine();
         });
 
+        // Dynamic status preview for transfer form
+        document.getElementById('transferStatus').addEventListener('change', () => {
+            this.updateTransferStatusPreview();
+        });
+        document.getElementById('transferWhom').addEventListener('input', () => {
+            this.updateTransferStatusPreview();
+        });
+
         // Track medicine
         document.getElementById('trackBtn').addEventListener('click', async () => {
             await this.handleTrackMedicine();
@@ -152,17 +160,21 @@ class HealthcareSupplyChainApp {
         const activityContainer = document.getElementById('recentActivity');
         const recentMedicines = medicines.slice(-5).reverse();
 
-        activityContainer.innerHTML = recentMedicines.map(medicine => `
+        activityContainer.innerHTML = recentMedicines.map(medicine => {
+            const ownerName = medicine.currentOwnerName || "Unknown";
+            const statusDisplay = medicine.statusFormatted || this.formatStatus(medicine.status);
+            return `
             <div class="activity-item">
                 <div class="activity-icon">
                     <i class="fas fa-pills"></i>
                 </div>
                 <div class="activity-content">
                     <h4>${medicine.name}</h4>
-                    <p>Batch: ${medicine.batchNumber} | Status: ${this.formatStatus(medicine.status)}</p>
+                    <p>Batch: ${medicine.batchNumber} | Status: ${statusDisplay} | Owner: ${ownerName}</p>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
 
     displayMedicines(medicines) {
@@ -173,14 +185,17 @@ class HealthcareSupplyChainApp {
             return;
         }
 
-        container.innerHTML = medicines.map(medicine => `
+        container.innerHTML = medicines.map(medicine => {
+            const ownerName = medicine.currentOwnerName || "Unknown";
+            const statusDisplay = medicine.statusFormatted || this.formatStatus(medicine.status);
+            return `
             <div class="medicine-card">
                 <h3>${medicine.name}</h3>
                 <div class="medicine-info">
                     <span><strong>ID:</strong> ${medicine.id}</span>
                     <span><strong>Batch:</strong> ${medicine.batchNumber}</span>
-                    <span><strong>Status:</strong> <span class="status-badge status-${medicine.status.toLowerCase()}">${this.formatStatus(medicine.status)}</span></span>
-                    <span><strong>Owner:</strong> ${medicine.currentOwner.slice(0, 6)}...${medicine.currentOwner.slice(-4)}</span>
+                    <span><strong>Status:</strong> <span class="status-badge status-${medicine.status.toLowerCase()}">${statusDisplay}</span></span>
+                    <span><strong>Owner:</strong> ${ownerName} <small>(${medicine.currentOwner.slice(0, 6)}...${medicine.currentOwner.slice(-4)})</small></span>
                     <span><strong>Manufactured:</strong> ${this.formatDate(medicine.manufactureDate)}</span>
                     <span><strong>Expires:</strong> ${this.formatDate(medicine.expiryDate)}</span>
                 </div>
@@ -195,7 +210,8 @@ class HealthcareSupplyChainApp {
                     </button>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
 
     async handleManufactureMedicine() {
@@ -271,7 +287,8 @@ class HealthcareSupplyChainApp {
             medicineId: parseInt(document.getElementById('transferMedicineId').value),
             toAddress: document.getElementById('transferTo').value,
             newStatus: document.getElementById('transferStatus').value,
-            location: document.getElementById('transferLocation').value
+            location: document.getElementById('transferLocation').value,
+            recipientName: document.getElementById('transferWhom').value.trim() || null
         };
 
         try {
@@ -286,7 +303,8 @@ class HealthcareSupplyChainApp {
                 body: JSON.stringify({
                     toAddress: formData.toAddress,
                     newStatus: formData.newStatus,
-                    location: formData.location
+                    location: formData.location,
+                    recipientName: formData.recipientName
                 })
             });
 
@@ -372,15 +390,20 @@ class HealthcareSupplyChainApp {
                 const isCurrent = index === stages.length - 1;
                 console.log(`Rendering stage ${index + 1}: ${stage.stage} with icon: ${icon}`);
                 
+                const ownerName = stage.ownerName || "Unknown";
+                const stageDisplay = stage.stageFormatted || this.formatStatus(stage.stage);
+                const recipientName = stage.recipientName || stage.pharmacyName || stage.distributorName || stage.patientName;
+                
                 return `
                 <div class="timeline-item">
                     <div class="timeline-icon ${isCurrent ? 'current' : ''}">
                         <i class="fas fa-${icon}"></i>
                     </div>
                     <div class="timeline-content">
-                        <h4>${this.formatStatus(stage.stage)}</h4>
+                        <h4>${stageDisplay}</h4>
                         <p><strong>Location:</strong> ${stage.location}</p>
-                        <p><strong>Owner:</strong> ${stage.owner.slice(0, 6)}...${stage.owner.slice(-4)}</p>
+                        <p><strong>Owner:</strong> ${ownerName} <small>(${stage.owner.slice(0, 6)}...${stage.owner.slice(-4)})</small></p>
+                        ${recipientName ? `<p><strong>Recipient:</strong> ${recipientName}</p>` : ''}
                         <p><strong>Tx Hash:</strong> ${stage.txHash}</p>
                         <small>${this.formatDate(stage.timestamp)}</small>
                     </div>
@@ -390,6 +413,8 @@ class HealthcareSupplyChainApp {
         } else {
             console.log('No stages found, using fallback');
             // Fallback to basic info if no stages
+            const ownerName = medicine.currentOwnerName || "Unknown";
+            const statusDisplay = medicine.statusFormatted || this.formatStatus(medicine.status);
             timelineHTML = `
                 <div class="timeline-item">
                     <div class="timeline-content">
@@ -401,13 +426,16 @@ class HealthcareSupplyChainApp {
                 ${medicine.status !== 'MANUFACTURED' ? `
                     <div class="timeline-item">
                         <div class="timeline-content">
-                            <h4>Current Status: ${this.formatStatus(medicine.status)}</h4>
-                            <p>Currently owned by ${medicine.currentOwner}</p>
+                            <h4>Current Status: ${statusDisplay}</h4>
+                            <p>Currently owned by ${ownerName} (${medicine.currentOwner})</p>
                         </div>
                     </div>
                 ` : ''}
             `;
         }
+        
+        const ownerName = medicine.currentOwnerName || "Unknown";
+        const statusDisplay = medicine.statusFormatted || this.formatStatus(medicine.status);
         
         container.innerHTML = `
             <div class="medicine-details">
@@ -415,8 +443,8 @@ class HealthcareSupplyChainApp {
                 <div class="medicine-info">
                     <span><strong>ID:</strong> ${medicine.id}</span>
                     <span><strong>Batch:</strong> ${medicine.batchNumber}</span>
-                    <span><strong>Status:</strong> <span class="status-badge status-${medicine.status.toLowerCase()}">${this.formatStatus(medicine.status)}</span></span>
-                    <span><strong>Current Owner:</strong> ${medicine.currentOwner}</span>
+                    <span><strong>Status:</strong> <span class="status-badge status-${medicine.status.toLowerCase()}">${statusDisplay}</span></span>
+                    <span><strong>Current Owner:</strong> ${ownerName} <small>(${medicine.currentOwner})</small></span>
                     <span><strong>Manufacturer:</strong> ${medicine.manufacturer}</span>
                     <span><strong>Expiry Date:</strong> ${this.formatDate(medicine.expiryDate)}</span>
                 </div>
@@ -468,6 +496,13 @@ class HealthcareSupplyChainApp {
     }
 
     formatStatus(status) {
+        // If status already includes recipient name from backend (distributor, pharmacy, or patient), use it
+        if (status.includes('CITY Engg Pharmacy') || status.includes('Pharmacy') || 
+            status.includes('Global Distributors') || status.includes('Distributor') ||
+            status.includes('John Smith') || status.includes('Sarah Johnson') || status.includes('Patient')) {
+            return status;
+        }
+        
         const statusMap = {
             'MANUFACTURED': 'Manufactured',
             'SHIPPED_TO_DISTRIBUTOR': 'Shipped to Distributor',
@@ -483,6 +518,50 @@ class HealthcareSupplyChainApp {
 
     formatDate(timestamp) {
         return new Date(timestamp * 1000).toLocaleDateString();
+    }
+
+    updateTransferStatusPreview() {
+        const statusSelect = document.getElementById('transferStatus');
+        const whomInput = document.getElementById('transferWhom');
+        const previewGroup = document.getElementById('statusPreviewGroup');
+        const previewBadge = document.getElementById('statusPreviewBadge');
+        
+        const selectedStatus = statusSelect.value;
+        const recipientName = whomInput.value.trim();
+        
+        if (!selectedStatus) {
+            previewGroup.style.display = 'none';
+            return;
+        }
+        
+        previewGroup.style.display = 'block';
+        
+        // Format status with recipient name
+        let statusText = '';
+        let statusClass = '';
+        
+        if (selectedStatus === 'SHIPPED_TO_DISTRIBUTOR') {
+            statusText = recipientName ? `Shipped to ${recipientName}` : 'Shipped to Distributor';
+            statusClass = 'status-shipped_to_distributor';
+        } else if (selectedStatus === 'RECEIVED_BY_DISTRIBUTOR') {
+            statusText = recipientName ? `Received by ${recipientName}` : 'Received by Distributor';
+            statusClass = 'status-received_by_distributor';
+        } else if (selectedStatus === 'SHIPPED_TO_PHARMACY') {
+            statusText = recipientName ? `Shipped to ${recipientName}` : 'Shipped to Pharmacy';
+            statusClass = 'status-shipped_to_pharmacy';
+        } else if (selectedStatus === 'RECEIVED_BY_PHARMACY') {
+            statusText = recipientName ? `Received by ${recipientName}` : 'Received by Pharmacy';
+            statusClass = 'status-received_by_pharmacy';
+        } else if (selectedStatus === 'SOLD_TO_PATIENT') {
+            statusText = recipientName ? `Sold to ${recipientName}` : 'Sold to Patient';
+            statusClass = 'status-sold_to_patient';
+        } else {
+            statusText = selectedStatus;
+            statusClass = 'status-' + selectedStatus.toLowerCase();
+        }
+        
+        previewBadge.textContent = statusText;
+        previewBadge.className = `status-badge ${statusClass}`;
     }
 
     showLoading() {

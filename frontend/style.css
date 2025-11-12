@@ -213,6 +213,28 @@ body {
     margin: 0;
 }
 
+.form-hint {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    font-style: italic;
+}
+
+.status-preview {
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px dashed #3498db;
+    margin-top: 8px;
+}
+
+.status-preview .status-badge {
+    font-size: 1rem;
+    padding: 8px 15px;
+    display: inline-block;
+}
+
 /* Buttons */
 .btn {
     background: #3498db;

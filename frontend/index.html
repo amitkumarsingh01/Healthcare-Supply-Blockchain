@@ -187,6 +187,17 @@
                         </select>
                     </div>
                     <div class="form-group">
+                        <label for="transferWhom">Whom (Recipient Name)</label>
+                        <input type="text" id="transferWhom" placeholder="e.g., Global Distributors Ltd., CITY Engg Pharmacy, John Smith">
+                        <small class="form-hint">Enter the name of the distributor, pharmacy, or patient</small>
+                    </div>
+                    <div class="form-group" id="statusPreviewGroup" style="display: none;">
+                        <label>Status Preview:</label>
+                        <div id="statusPreview" class="status-preview">
+                            <span class="status-badge" id="statusPreviewBadge"></span>
+                        </div>
+                    </div>
+                    <div class="form-group">
                         <label for="transferLocation">Location</label>
                         <input type="text" id="transferLocation" required>
                     </div>

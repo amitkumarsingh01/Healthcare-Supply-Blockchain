@@ -44,6 +44,7 @@ class MedicineTransfer(BaseModel):
     toAddress: str
     newStatus: MedicineStatus
     location: str
+    recipientName: Optional[str] = None  # Whom - recipient name (distributor, pharmacy, or patient)
 
 class TemperatureUpdate(BaseModel):
     temperature: str

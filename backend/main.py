@@ -18,6 +18,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 👥 OWNER NAME MAPPING - Maps addresses to owner names
+OWNER_NAMES = {
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266": "MediPharm Manufacturing Co.",
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": "Global Distributors Ltd.",
+    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC": "CITY Engg Pharmacy",
+    "0x90F79bf6EB2c4f870365E785982E1f101E93b906": "John Smith (Patient)",
+    "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65": "Sarah Johnson (Patient)"
+}
+
+# 🏥 PHARMACY MAPPING - Maps addresses to pharmacy names for status display
+PHARMACY_NAMES = {
+    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC": "CITY Engg Pharmacy",
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": "Global Distributors Ltd."
+}
+
+# 🚚 DISTRIBUTOR MAPPING - Maps addresses to distributor names for status display
+DISTRIBUTOR_NAMES = {
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": "Global Distributors Ltd."
+}
+
+# 👤 PATIENT MAPPING - Maps addresses to patient names for status display
+PATIENT_NAMES = {
+    "0x90F79bf6EB2c4f870365E785982E1f101E93b906": "John Smith",
+    "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65": "Sarah Johnson"
+}
+
 # 🔗 BLOCKCHAIN DATA - Hardcoded medicine data simulating blockchain state
 BLOCKCHAIN_MEDICINES = [
     {
@@ -146,31 +172,57 @@ BLOCKCHAIN_STAGES_DATA = {
     ],
     2: [  # Insulin - Full lifecycle
         {"stage": "MANUFACTURED", "location": "Manufacturing Plant A", "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "timestamp": int((datetime.now() - timedelta(days=15)).timestamp()), "txHash": "0xstage002"},
-        {"stage": "SHIPPED_TO_DISTRIBUTOR", "location": "Loading Dock A", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=13)).timestamp()), "txHash": "0xstage003"},
-        {"stage": "RECEIVED_BY_DISTRIBUTOR", "location": "Distribution Center", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=12)).timestamp()), "txHash": "0xstage004"}
+        {"stage": "SHIPPED_TO_DISTRIBUTOR", "location": "Loading Dock A", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "distributorName": "Global Distributors Ltd.", "recipientName": "Global Distributors Ltd.", "timestamp": int((datetime.now() - timedelta(days=13)).timestamp()), "txHash": "0xstage003"},
+        {"stage": "RECEIVED_BY_DISTRIBUTOR", "location": "Distribution Center", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "distributorName": "Global Distributors Ltd.", "recipientName": "Global Distributors Ltd.", "timestamp": int((datetime.now() - timedelta(days=12)).timestamp()), "txHash": "0xstage004"}
     ],
     3: [  # Paracetamol - Through pharmacy
         {"stage": "MANUFACTURED", "location": "Manufacturing Plant A", "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "timestamp": int((datetime.now() - timedelta(days=7)).timestamp()), "txHash": "0xstage005"},
-        {"stage": "SHIPPED_TO_DISTRIBUTOR", "location": "Loading Dock B", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=6)).timestamp()), "txHash": "0xstage006"},
-        {"stage": "RECEIVED_BY_DISTRIBUTOR", "location": "Warehouse B", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=5)).timestamp()), "txHash": "0xstage007"},
-        {"stage": "SHIPPED_TO_PHARMACY", "location": "Warehouse B - Outbound", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "timestamp": int((datetime.now() - timedelta(days=4)).timestamp()), "txHash": "0xstage008"},
-        {"stage": "RECEIVED_BY_PHARMACY", "location": "Pharmacy D", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "timestamp": int((datetime.now() - timedelta(days=2)).timestamp()), "txHash": "0xstage009"}
+        {"stage": "SHIPPED_TO_DISTRIBUTOR", "location": "Loading Dock B", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "distributorName": "Global Distributors Ltd.", "recipientName": "Global Distributors Ltd.", "timestamp": int((datetime.now() - timedelta(days=6)).timestamp()), "txHash": "0xstage006"},
+        {"stage": "RECEIVED_BY_DISTRIBUTOR", "location": "Warehouse B", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "distributorName": "Global Distributors Ltd.", "recipientName": "Global Distributors Ltd.", "timestamp": int((datetime.now() - timedelta(days=5)).timestamp()), "txHash": "0xstage007"},
+        {"stage": "SHIPPED_TO_PHARMACY", "location": "Warehouse B - Outbound", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "pharmacyName": "CITY Engg Pharmacy", "recipientName": "CITY Engg Pharmacy", "timestamp": int((datetime.now() - timedelta(days=4)).timestamp()), "txHash": "0xstage008"},
+        {"stage": "RECEIVED_BY_PHARMACY", "location": "CITY Engg Pharmacy", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "pharmacyName": "CITY Engg Pharmacy", "recipientName": "CITY Engg Pharmacy", "timestamp": int((datetime.now() - timedelta(days=2)).timestamp()), "txHash": "0xstage009"}
     ],
     4: [  # Antibiotic - Sold to patient
         {"stage": "MANUFACTURED", "location": "Manufacturing Plant A", "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "timestamp": int((datetime.now() - timedelta(days=45)).timestamp()), "txHash": "0xstage010"},
-        {"stage": "SHIPPED_TO_DISTRIBUTOR", "location": "Loading Dock C", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=43)).timestamp()), "txHash": "0xstage011"},
-        {"stage": "RECEIVED_BY_DISTRIBUTOR", "location": "Distribution Center", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=42)).timestamp()), "txHash": "0xstage012"},
-        {"stage": "SHIPPED_TO_PHARMACY", "location": "Distribution Center - Outbound", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "timestamp": int((datetime.now() - timedelta(days=40)).timestamp()), "txHash": "0xstage013"},
-        {"stage": "RECEIVED_BY_PHARMACY", "location": "Pharmacy D", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "timestamp": int((datetime.now() - timedelta(days=38)).timestamp()), "txHash": "0xstage014"},
-        {"stage": "SOLD_TO_PATIENT", "location": "Patient Home", "owner": "0x90F79bf6EB2c4f870365E785982E1f101E93b906", "timestamp": int((datetime.now() - timedelta(days=1)).timestamp()), "txHash": "0xstage015"}
+        {"stage": "SHIPPED_TO_DISTRIBUTOR", "location": "Loading Dock C", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "distributorName": "Global Distributors Ltd.", "recipientName": "Global Distributors Ltd.", "timestamp": int((datetime.now() - timedelta(days=43)).timestamp()), "txHash": "0xstage011"},
+        {"stage": "RECEIVED_BY_DISTRIBUTOR", "location": "Distribution Center", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "distributorName": "Global Distributors Ltd.", "recipientName": "Global Distributors Ltd.", "timestamp": int((datetime.now() - timedelta(days=42)).timestamp()), "txHash": "0xstage012"},
+        {"stage": "SHIPPED_TO_PHARMACY", "location": "Distribution Center - Outbound", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "pharmacyName": "CITY Engg Pharmacy", "recipientName": "CITY Engg Pharmacy", "timestamp": int((datetime.now() - timedelta(days=40)).timestamp()), "txHash": "0xstage013"},
+        {"stage": "RECEIVED_BY_PHARMACY", "location": "CITY Engg Pharmacy", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "pharmacyName": "CITY Engg Pharmacy", "recipientName": "CITY Engg Pharmacy", "timestamp": int((datetime.now() - timedelta(days=38)).timestamp()), "txHash": "0xstage014"},
+        {"stage": "SOLD_TO_PATIENT", "location": "Patient Home", "owner": "0x90F79bf6EB2c4f870365E785982E1f101E93b906", "patientName": "John Smith", "recipientName": "John Smith", "timestamp": int((datetime.now() - timedelta(days=1)).timestamp()), "txHash": "0xstage015"}
     ],
     5: [  # Vitamin D - Expired
         {"stage": "MANUFACTURED", "location": "Manufacturing Plant A", "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "timestamp": int((datetime.now() - timedelta(days=60)).timestamp()), "txHash": "0xstage016"},
         {"stage": "SHIPPED_TO_DISTRIBUTOR", "location": "Loading Dock D", "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "timestamp": int((datetime.now() - timedelta(days=58)).timestamp()), "txHash": "0xstage017"},
-        {"stage": "RECEIVED_BY_PHARMACY", "location": "Pharmacy D", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "timestamp": int((datetime.now() - timedelta(days=2)).timestamp()), "txHash": "0xstage018"},
-        {"stage": "EXPIRED", "location": "Pharmacy D - Expired Stock", "owner": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65", "timestamp": int((datetime.now() - timedelta(days=1)).timestamp()), "txHash": "0xstage019"}
+        {"stage": "RECEIVED_BY_PHARMACY", "location": "CITY Engg Pharmacy", "owner": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", "pharmacyName": "CITY Engg Pharmacy", "timestamp": int((datetime.now() - timedelta(days=2)).timestamp()), "txHash": "0xstage018"},
+        {"stage": "EXPIRED", "location": "CITY Engg Pharmacy - Expired Stock", "owner": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65", "timestamp": int((datetime.now() - timedelta(days=1)).timestamp()), "txHash": "0xstage019"}
     ]
 }
+
+# Helper function to format status with recipient names
+def format_status_with_recipient(status: str, owner_address: str, recipient_name: str = None) -> str:
+    """Format status to include recipient name (distributor, pharmacy, or patient) when applicable"""
+    if status == "SHIPPED_TO_PHARMACY":
+        pharmacy_name = recipient_name or PHARMACY_NAMES.get(owner_address, "Pharmacy")
+        return f"Shipped to {pharmacy_name}"
+    elif status == "RECEIVED_BY_PHARMACY":
+        pharmacy_name = recipient_name or PHARMACY_NAMES.get(owner_address, "Pharmacy")
+        return f"Received by {pharmacy_name}"
+    elif status == "SHIPPED_TO_DISTRIBUTOR":
+        distributor_name = recipient_name or DISTRIBUTOR_NAMES.get(owner_address, "Distributor")
+        return f"Shipped to {distributor_name}"
+    elif status == "RECEIVED_BY_DISTRIBUTOR":
+        distributor_name = recipient_name or DISTRIBUTOR_NAMES.get(owner_address, "Distributor")
+        return f"Received by {distributor_name}"
+    elif status == "SOLD_TO_PATIENT":
+        patient_name = recipient_name or PATIENT_NAMES.get(owner_address, "Patient")
+        return f"Sold to {patient_name}"
+    else:
+        status_map = {
+            'MANUFACTURED': 'Manufactured',
+            'EXPIRED': 'Expired',
+            'RECALLED': 'Recalled'
+        }
+        return status_map.get(status, status)
 
 # Pydantic models for API requests/responses
 class MedicineResponse(BaseModel):
@@ -181,7 +233,9 @@ class MedicineResponse(BaseModel):
     expiryDate: int
     manufacturer: str
     currentOwner: str
+    currentOwnerName: Optional[str] = None
     status: str
+    statusFormatted: Optional[str] = None
     temperatureThreshold: int
     temperatureSensitive: bool
     isActive: bool
@@ -207,6 +261,12 @@ class SupplyChainStage(BaseModel):
     stage: str
     location: str
     owner: str
+    ownerName: Optional[str] = None
+    pharmacyName: Optional[str] = None
+    distributorName: Optional[str] = None
+    patientName: Optional[str] = None
+    recipientName: Optional[str] = None  # General recipient name field
+    stageFormatted: Optional[str] = None
     timestamp: int
     txHash: str
 
@@ -248,7 +308,14 @@ async def get_contract_info():
 async def get_medicines():
     """🔗 Get all medicines from blockchain"""
     try:
-        return [MedicineResponse(**medicine) for medicine in BLOCKCHAIN_MEDICINES if medicine["isActive"]]
+        medicines_with_names = []
+        for medicine in BLOCKCHAIN_MEDICINES:
+            if medicine["isActive"]:
+                medicine_data = medicine.copy()
+                medicine_data["currentOwnerName"] = OWNER_NAMES.get(medicine["currentOwner"], "Unknown")
+                medicine_data["statusFormatted"] = format_status_with_recipient(medicine["status"], medicine["currentOwner"])
+                medicines_with_names.append(MedicineResponse(**medicine_data))
+        return medicines_with_names
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
 
@@ -259,7 +326,10 @@ async def get_medicine(medicine_id: int):
         medicine = next((m for m in BLOCKCHAIN_MEDICINES if m["id"] == medicine_id and m["isActive"]), None)
         if not medicine:
             raise HTTPException(status_code=404, detail="Medicine not found on blockchain")
-        return MedicineResponse(**medicine)
+        medicine_data = medicine.copy()
+        medicine_data["currentOwnerName"] = OWNER_NAMES.get(medicine["currentOwner"], "Unknown")
+        medicine_data["statusFormatted"] = format_status_with_recipient(medicine["status"], medicine["currentOwner"])
+        return MedicineResponse(**medicine_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
 
@@ -268,9 +338,15 @@ async def get_medicines_by_batch(batch_number: str):
     """🔗 Get medicines by batch number from blockchain"""
     try:
         medicines = [m for m in BLOCKCHAIN_MEDICINES if m["batchNumber"] == batch_number and m["isActive"]]
+        medicines_with_names = []
+        for medicine in medicines:
+            medicine_data = medicine.copy()
+            medicine_data["currentOwnerName"] = OWNER_NAMES.get(medicine["currentOwner"], "Unknown")
+            medicine_data["statusFormatted"] = format_status_with_recipient(medicine["status"], medicine["currentOwner"])
+            medicines_with_names.append(MedicineResponse(**medicine_data))
         return BatchResponse(
             batchNumber=batch_number,
-            medicines=[MedicineResponse(**medicine) for medicine in medicines]
+            medicines=medicines_with_names
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
@@ -302,7 +378,9 @@ async def create_medicine(medicine: MedicineCreate):
             "isActive": True,
             "blockchainTxHash": f"0x{new_id:040x}",
             "blockNumber": 1000 + new_id,
-            "gasUsed": 150000
+            "gasUsed": 150000,
+            "currentOwnerName": OWNER_NAMES.get(manufacturer_address, "Unknown"),
+            "statusFormatted": format_status_with_recipient("MANUFACTURED", manufacturer_address)
         }
         
         BLOCKCHAIN_MEDICINES.append(new_medicine)
@@ -338,6 +416,9 @@ async def transfer_medicine(medicine_id: int, transfer: MedicineTransfer):
         # Simulate blockchain transaction
         medicine["currentOwner"] = transfer.toAddress
         medicine["status"] = transfer.newStatus
+        medicine["currentOwnerName"] = OWNER_NAMES.get(transfer.toAddress, "Unknown")
+        # Use recipientName if provided, otherwise use default mapping
+        medicine["statusFormatted"] = format_status_with_recipient(transfer.newStatus, transfer.toAddress, transfer.recipientName)
         medicine["blockchainTxHash"] = f"0xtransfer{medicine_id:040x}"
         medicine["blockNumber"] = 2000 + medicine_id
         medicine["gasUsed"] = 120000
@@ -353,6 +434,22 @@ async def transfer_medicine(medicine_id: int, transfer: MedicineTransfer):
             "timestamp": int(datetime.now().timestamp()),
             "txHash": medicine["blockchainTxHash"]
         }
+        
+        # Add recipient name if provided
+        if transfer.recipientName:
+            new_stage["recipientName"] = transfer.recipientName
+        
+        # Add specific name fields based on status type
+        if transfer.newStatus in ["SHIPPED_TO_PHARMACY", "RECEIVED_BY_PHARMACY"]:
+            pharmacy_name = transfer.recipientName or PHARMACY_NAMES.get(transfer.toAddress, "Pharmacy")
+            new_stage["pharmacyName"] = pharmacy_name
+        elif transfer.newStatus in ["SHIPPED_TO_DISTRIBUTOR", "RECEIVED_BY_DISTRIBUTOR"]:
+            distributor_name = transfer.recipientName or DISTRIBUTOR_NAMES.get(transfer.toAddress, "Distributor")
+            new_stage["distributorName"] = distributor_name
+        elif transfer.newStatus == "SOLD_TO_PATIENT":
+            patient_name = transfer.recipientName or PATIENT_NAMES.get(transfer.toAddress, "Patient")
+            new_stage["patientName"] = patient_name
+        
         BLOCKCHAIN_STAGES_DATA[medicine_id].append(new_stage)
         
         # Add location to location data
@@ -473,9 +570,24 @@ async def get_supply_chain_stages(medicine_id: int):
             return SupplyChainTimelineResponse(stages=[])
         
         stages = BLOCKCHAIN_STAGES_DATA[medicine_id]
-        return SupplyChainTimelineResponse(
-            stages=[SupplyChainStage(**stage) for stage in stages]
-        )
+        stages_with_names = []
+        for stage in stages:
+            stage_data = stage.copy()
+            stage_data["ownerName"] = OWNER_NAMES.get(stage["owner"], "Unknown")
+            # Get recipient name from stage data if available
+            recipient_name = stage.get("recipientName") or stage.get("pharmacyName") or stage.get("distributorName") or stage.get("patientName")
+            if "pharmacyName" in stage:
+                stage_data["pharmacyName"] = stage["pharmacyName"]
+            if "distributorName" in stage:
+                stage_data["distributorName"] = stage["distributorName"]
+            if "patientName" in stage:
+                stage_data["patientName"] = stage["patientName"]
+            if recipient_name:
+                stage_data["recipientName"] = recipient_name
+            stage_data["stageFormatted"] = format_status_with_recipient(stage["stage"], stage["owner"], recipient_name)
+            stages_with_names.append(SupplyChainStage(**stage_data))
+        
+        return SupplyChainTimelineResponse(stages=stages_with_names)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
 
@@ -544,6 +656,32 @@ async def get_user_role(address: str):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Blockchain query failed: {str(e)}")
+
+@app.post("/seed-data")
+async def seed_data():
+    """🌱 Seed initial data into memory"""
+    try:
+        # Data is already seeded in memory at startup
+        # This endpoint just confirms the seeded data
+        return {
+            "success": True,
+            "message": "Data already seeded in memory",
+            "total_medicines": len(BLOCKCHAIN_MEDICINES),
+            "owner_names": len(OWNER_NAMES),
+            "pharmacy_names": len(PHARMACY_NAMES),
+            "medicines": [
+                {
+                    "id": m["id"],
+                    "name": m["name"],
+                    "status": m["status"],
+                    "currentOwner": m["currentOwner"],
+                    "currentOwnerName": OWNER_NAMES.get(m["currentOwner"], "Unknown")
+                }
+                for m in BLOCKCHAIN_MEDICINES
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get seed data: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
